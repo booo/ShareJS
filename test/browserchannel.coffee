@@ -14,6 +14,8 @@ newDocName = helpers.newDocName
 applyOps = helpers.applyOps
 makePassPart = helpers.makePassPart
 
+http = require "http"
+
 ANYOBJECT = new Object
 
 # Helper method to check that subsequent data received by the callback is a particular
@@ -46,7 +48,7 @@ module.exports = testCase
 
     try
       @model = server.createModel options
-      @server = server options, @model
+      @server = http.createServer server options, @model
 
       @server.listen =>
         @name = 'testingdoc'
@@ -70,8 +72,7 @@ module.exports = testCase
     @socket.close()
 
     # Its important the port has closed before the next test is run.
-    @server.on 'close', callback
-    @server.close()
+    @server.close callback
 
   'open an existing document with no version specified opens the document': (test) ->
     @model.create @name, 'simple', =>

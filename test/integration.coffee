@@ -15,6 +15,8 @@ webclient = require './helpers/webclient'
 
 {randomReal} = require './helpers'
 
+http = require "http"
+
 nowOrLater = (fn) ->
   if randomReal() < 0.5
     fn()
@@ -44,7 +46,7 @@ genTests = (client, dbType) -> testCase
     require './types/text'
 
     @name = 'testingdoc'
-    @server = server {db: {type: dbType}}
+    @server = http.createServer server {db: {type: dbType}}
     @server.listen =>
       @port = @server.address().port
 
@@ -61,8 +63,7 @@ genTests = (client, dbType) -> testCase
     @c1.disconnect()
     @c2.disconnect()
 
-    @server.on 'close', callback
-    @server.close()
+    @server.close callback
 
   'ops submitted on one document get sent to another': (test) ->
     @server.model.delete @name, =>

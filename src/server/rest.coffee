@@ -5,8 +5,6 @@
 http = require 'http'
 url = require 'url'
 
-connect = require 'connect'
-
 send403 = (res, message = 'Forbidden\n') ->
   res.writeHead 403, {'Content-Type': 'text/plain'}
   res.end message
@@ -83,7 +81,7 @@ router = (app, createClient, options) ->
   # I'm not sure what to do with document metadata - it is inaccessable for now.
   app.get '/doc/:name', auth, (req, res) ->
     req._client.getSnapshot req.params.name, (error, doc) ->
-      if doc  
+      if doc
         res.setHeader 'X-OT-Type', doc.type.name
         res.setHeader 'X-OT-Version', doc.v
         if req.method == "HEAD"
@@ -98,7 +96,7 @@ router = (app, createClient, options) ->
           sendError res, error, true
         else
           sendError res, error
-          
+
   # Put is used to create a document. The contents are a JSON object with {type:TYPENAME, meta:{...}}
   app.put '/doc/:name', auth, (req, res) ->
     expectJSONObject req, res, (obj) ->
@@ -122,7 +120,7 @@ router = (app, createClient, options) ->
       parseInt query?.v
     else
       parseInt req.headers['x-ot-version']
-    
+
     unless version? and version >= 0
       send400 res, 'Version required - attach query parameter ?v=X on your URL or set the X-OT-Version header'
     else
@@ -142,7 +140,7 @@ router = (app, createClient, options) ->
         send200 res
 
 # Attach the frontend to the supplied http.Server.
-# 
+#
 # As of sharejs 0.4.0, options is ignored. To control the deleting of documents, specify an auth() function.
-module.exports = (createClient, options) ->
-  connect.router (app) -> router(app, createClient, options)
+module.exports = (app, createClient, options) ->
+  router(app, createClient, options)

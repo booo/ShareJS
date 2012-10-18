@@ -18,7 +18,6 @@ fetch = (method, port, path, postData, extraHeaders, callback) ->
     extraHeaders = null
 
   headers = extraHeaders || {'x-testing': 'booyah'}
-
   request = http.request {method, path, host: 'localhost', port, headers}, (response) ->
     data = ''
     response.on 'data', (chunk) -> data += chunk
@@ -55,8 +54,7 @@ module.exports = testCase
     # At least this way we'll get a stack trace.
     try
       @model = server.createModel options
-      @server = server options, @model
-      @server.listen =>
+      @server = http.createServer(server(options, @model)).listen =>
         @port = @server.address().port
         callback()
     catch e
@@ -64,20 +62,19 @@ module.exports = testCase
       throw e
 
   tearDown: (callback) ->
-    @server.on 'close', callback
-    @server.close()
+    @server.close callback
 
   'return 404 when on GET on a nonexistant document': (test) ->
     fetch 'GET', @port, "/doc/#{@name}", null, (res, data) ->
       test.strictEqual(res.statusCode, 404)
       test.done()
-      
+
    'return 404 and empty body when on HEAD on a nonexistant document': (test) ->
     fetch 'HEAD', @port, "/doc/#{@name}", null, (res, data) ->
       test.strictEqual res.statusCode, 404
       test.strictEqual data, ''
       test.done()
-  
+
   'return 200, empty body, version and type when on HEAD on a document': (test) ->
     @model.create @name, 'simple', =>
       @model.applyOp @name, {v:0, op:{position: 0, text: 'Hi'}}, =>
@@ -87,7 +84,7 @@ module.exports = testCase
           test.strictEqual headers['x-ot-type'], 'simple'
           test.strictEqual data, ''
           test.done()
-          
+
   'GET a document returns the document snapshot': (test) ->
     @model.create @name, 'simple', =>
       @model.applyOp @name, {v:0, op:{position: 0, text: 'Hi'}}, =>
@@ -97,7 +94,7 @@ module.exports = testCase
           test.strictEqual headers['x-ot-type'], 'simple'
           test.deepEqual data, {str:'Hi'}
           test.done()
-  
+
   'GET a plaintext document returns it as a string': (test) ->
     @model.create @name, 'text', =>
       @model.applyOp @name, {v:0, op:[{i:'hi', p:0}]}, =>
@@ -131,7 +128,7 @@ module.exports = testCase
         @model.getSnapshot @name, (error, doc) ->
           test.deepEqual doc, {v:1, type:types.simple, snapshot:{str:'Hi'}, meta:{}}
           test.done()
-  
+
   'POST a document setting the version in an HTTP header works': (test) ->
     @model.create @name, 'simple', =>
       fetch 'POST', @port, "/doc/#{@name}", {position: 0, text: 'Hi'}, {'X-OT-Version': 0}, (res, data) =>
@@ -141,7 +138,7 @@ module.exports = testCase
         @model.getSnapshot @name, (error, doc) ->
           test.deepEqual doc, {v:1, type:types.simple, snapshot:{str:'Hi'}, meta:{}}
           test.done()
-  
+
   'POST a document with no version returns 400': (test) ->
     fetch 'POST', @port, "/doc/#{@name}", {type:'simple'}, (res, data) ->
       test.strictEqual res.statusCode, 400
@@ -151,14 +148,14 @@ module.exports = testCase
     fetch 'POST', @port, "/doc/#{@name}?v=0", 'invalid>{json', (res, data) ->
       test.strictEqual res.statusCode, 400
       test.done()
-  
+
   "Can't POST an op to a nonexistant document": (test) ->
     # This was found in the wild -
     # https://github.com/josephg/ShareJS/issues/66
     fetch 'POST', @port, "/doc/#{@name}?v=0", {foo:'bar'}, (res, data) ->
       test.strictEqual res.statusCode, 404
       test.done()
-    
+
   'DELETE deletes a document': (test) ->
     @model.create @name, 'simple', =>
       fetch 'DELETE', @port, "/doc/#{@name}", null, (res, data) =>
@@ -167,7 +164,7 @@ module.exports = testCase
         @model.getSnapshot @name, (error, doc) ->
           test.equal doc, null
           test.done()
-  
+
   'DELETE returns a 404 message if you delete something that doesn\'t exist': (test) ->
     fetch 'DELETE', @port, "/doc/#{@name}", null, (res, data) ->
       test.strictEqual res.statusCode, 404
@@ -211,7 +208,7 @@ module.exports = testCase
     @model.create doc2, 'simple', =>
       @model.applyOp doc2, {v:0, op:{position: 0, text: 'Hi'}}, =>
         fetch 'GET', @port, "/doc/#{doc2}", null, checkResponse
-    
+
         # Create an existing document
         fetch 'PUT', @port, "/doc/#{doc2}", {type:'simple'}, checkResponse
 

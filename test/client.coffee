@@ -10,6 +10,8 @@ webclient = require './helpers/webclient'
 
 {makePassPart, expectCalls} = require('./helpers')
 
+http = require "http"
+
 genTests = (client) -> testCase
   setUp: (callback) ->
     @name = 'testingdoc'
@@ -24,7 +26,7 @@ genTests = (client) -> testCase
       auth: (client, action) => @auth client, action
 
     @model = server.createModel options
-    @server = server options, @model
+    @server = http.createServer server options, @model
 
     @server.listen =>
       @port = @server.address().port
@@ -34,8 +36,7 @@ genTests = (client) -> testCase
   tearDown: (callback) ->
     @c.disconnect()
 
-    @server.on 'close', callback
-    @server.close()
+    @server.close callback
 
   'open using the bare API': (test) ->
     client.open @name, 'text', "http://localhost:#{@port}/sjs", (error, doc) =>

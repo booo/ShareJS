@@ -1,6 +1,6 @@
 # The server module...
 
-connect = require 'connect'
+express = require 'express'
 
 Model = require './model'
 createDb = require './db'
@@ -14,7 +14,7 @@ sockjs = require './sockjs'
 #
 # The model will be created based on options if it is not specified.
 module.exports = create = (options, model = createModel(options)) ->
-  attach(connect(), options, model)
+  attach(express(), options, model)
 
 # Create an OT document model attached to a database.
 create.createModel = createModel = (options) ->
@@ -37,13 +37,13 @@ create.attach = attach = (server, options, model = createModel(options)) ->
   server.model = model
   server.on 'close', -> model.closeDb()
 
-  server.use options.staticpath, connect.static("#{__dirname}/../../webclient") if options.staticpath != null
+  server.use options.staticpath, express.static("#{__dirname}/../../webclient") if options.staticpath != null
 
   createAgent = require('./useragent') model, options
 
   # The client frontend doesn't get access to the model at all, to make sure security stuff is
   # done properly.
-  server.use rest(createAgent, options.rest) if options.rest != null
+  server.use rest(server, createAgent, options.rest) if options.rest != null
 
   # Socketio frontend is now disabled by default.
   socketio.attach(server, createAgent, options.socketio or {}) if options.socketio?

@@ -9,7 +9,7 @@
 #    at Object.lookup (dns.js:190:11)
 #    at Socket.connect (net.js:712:20)
 #    at Object.createConnection (net.js:265:5)
-# 
+#
 # I don't know what is causing this. - Its happening when the socket.io client connects
 # to the socket.io server.
 
@@ -19,6 +19,8 @@ clientio = require 'socket.io-client'
 
 server = require '../src/server'
 types = require '../src/types'
+
+http = require 'http'
 
 helpers = require './helpers'
 newDocName = helpers.newDocName
@@ -44,7 +46,7 @@ expectData = (socket, expectedData, callback) ->
     if expectedData.length == 0
       socket.removeListener 'message', listener
       callback()
-  
+
   socket.on 'message', listener
 
 module.exports = testCase
@@ -59,11 +61,10 @@ module.exports = testCase
 
     try
       @model = server.createModel options
-      @server = server options, @model
+      @server = http.createServer server options, @model
 
       @server.listen =>
         @name = 'testingdoc'
-
         # Make a new socket.io socket connected to the server's stream interface
         @socket = clientio.connect "http://localhost:#{@server.address().port}/sjs"
         @socket.on 'connect', callback
@@ -73,13 +74,12 @@ module.exports = testCase
     catch e
       console.log e.stack
       throw e
-  
+
   tearDown: (callback) ->
     @socket.disconnect()
 
     # Its important the port has closed before the next test is run.
-    @server.on 'close', callback
-    @server.close()
+    @server.close callback
 
   'open an existing document with no version specified opens the document': (test) ->
     @model.create @name, 'simple', =>
@@ -88,7 +88,7 @@ module.exports = testCase
         @model.applyOp @name, {op:{position:0, text:'hi'}, v:0}, =>
           @expect {v:0, op:{position:0, text:'hi'}, meta:ANYOBJECT}, ->
             test.done()
-  
+
   'open an existing document with version specified opens the document': (test) ->
     @model.create @name, 'simple', =>
       @socket.json.send {doc:@name, open:true, v:0}
@@ -96,7 +96,7 @@ module.exports = testCase
         @model.applyOp @name, {op:{position:0, text:'hi'}, v:0}, =>
           @expect {v:0, op:{position:0, text:'hi'}, meta:ANYOBJECT}, ->
             test.done()
-  
+
   'open a nonexistant document with create:true creates the document': (test) ->
     @socket.json.send {doc:@name, open:true, create:true, type:'simple'}
     @expect {doc:@name, open:true, create:true, v:0}, =>
@@ -113,7 +113,7 @@ module.exports = testCase
     @socket.json.send {doc:@name, open:true, v:0}
     @expect {doc:@name, open:false, error:'Document does not exist'}, =>
       test.done()
-  
+
   'open a nonexistant document with snapshot:null fails normally': (test) ->
     @socket.json.send {doc:@name, open:true, snapshot:null}
     @expect {doc:@name, open:false, snapshot:null, error:'Document does not exist'}, =>
@@ -123,7 +123,7 @@ module.exports = testCase
     @socket.json.send {doc:@name, snapshot:null}
     @expect {doc:@name, snapshot:null, error:'Document does not exist'}, =>
       test.done()
-  
+
   'open a nonexistant document with create:true and snapshot:null does not return the snapshot': (test) ->
     # The snapshot can be inferred.
     @socket.json.send {doc:@name, open:true, create:true, type:'text', snapshot:null}
@@ -135,7 +135,7 @@ module.exports = testCase
       @socket.json.send {doc:@name, open:true, type:'text'}
       @expect {doc:@name, open:false, error:'Type mismatch'}, =>
         test.done()
-  
+
   'open an existing document with create:true opens the current document': (test) ->
     @model.create @name, 'simple', =>
       @model.applyOp @name, {op:{position:0, text:'hi'}, v:0}, =>
@@ -158,7 +158,7 @@ module.exports = testCase
       @model.getSnapshot @name, (error, docData) ->
         test.deepEqual docData, {snapshot:{str:''}, v:0, type:types.simple, meta:{}}
         test.done()
-  
+
   'create a document that already exists returns create:false': (test) ->
     @model.create @name, 'simple', =>
       @socket.json.send {doc:@name, create:true, type:'simple'}
@@ -249,7 +249,7 @@ module.exports = testCase
 
       @expect {v:0, op:[{i:'hi', p:0}], meta:ANYOBJECT}, ->
         test.done()
-  
+
   'doc names are sent in ops when necessary': (test) ->
     name1 = newDocName()
     name2 = newDocName()
